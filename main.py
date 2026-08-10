@@ -1,1 +1,0 @@
-print("Go Pack Go! 🧀")
