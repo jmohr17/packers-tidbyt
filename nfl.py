@@ -116,25 +116,3 @@ if __name__ == "__main__":
     )
 
     print(f"Packers Record: {wins}-{losses}-{ties}")
-    print(f"Games played: {wins + losses + ties}\n")
-
-    print(f"Found {len(games)} Packers games\n")
-
-    for game in games:
-        location = "vs" if game["home_away"] == "home" else "@"
-
-        if game["completed"]:
-            score = (
-                f'{game["packers_score"]}-'
-                f'{game["opponent_score"]} '
-                f'{game["result"]}'
-            )
-        else:
-            score = game["status"]
-
-        print(
-            f'{game["week"]:18} '
-            f'{location} {game["opponent_abbreviation"]:3} '
-            f'{game["local_date"]} '
-            f'({score})'
-        )
