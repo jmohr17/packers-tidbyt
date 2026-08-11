@@ -19,6 +19,6 @@ while true; do
             echo "Failed to render $APP"
         fi
 
-        sleep 5
+        sleep 1
     done
 done
