@@ -14,7 +14,7 @@ while true; do
         echo "Updating $APP..."
 
         if pixlet render "${APP}.star" -o "${APP}.webp"; then
-            pixlet push "$DEVICE_ID" "${APP}.webp"
+            pixlet push "$DEVICE_ID" "${APP}.webp" --installation-id "${APP//_/}"
         else
             echo "Failed to render $APP"
         fi
