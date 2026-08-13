@@ -61,8 +61,8 @@ def get_odds(event_id, packers_home):
 
     for market in draftkings:
         if market["name"] == "Spread" and market["odds"]:
-            hdp = market["odds"][0]["hdp"]
-            spread = hdp if packers_home else -hdp
+            home_spread = market["odds"][0]["hdp"]
+            spread = home_spread if packers_home else -home_spread
 
         elif market["name"] == "Totals" and market["odds"]:
             total = market["odds"][0]["hdp"]
@@ -78,13 +78,23 @@ def get_cached_odds(opponent_name, packers_home):
         with open(ODDS_CACHE_FILE) as file:
             cache = json.load(file)
 
-        if time.time() - cache["timestamp"] < ODDS_CACHE_SECONDS:
+        cache_age = time.time() - cache["timestamp"]
+
+        if (
+            cache["opponent_name"] == opponent_name
+            and cache_age < ODDS_CACHE_SECONDS
+        ):
             return {
                 "event_id": cache["event_id"],
                 "odds": cache["odds"],
             }
 
-    except (FileNotFoundError, KeyError, json.JSONDecodeError):
+    except (
+        FileNotFoundError,
+        KeyError,
+        TypeError,
+        json.JSONDecodeError,
+    ):
         pass
 
     odds_event = find_odds_event(opponent_name)
@@ -101,6 +111,7 @@ def get_cached_odds(opponent_name, packers_home):
         json.dump(
             {
                 "event_id": odds_event["id"],
+                "opponent_name": opponent_name,
                 "timestamp": time.time(),
                 "odds": odds,
             },
