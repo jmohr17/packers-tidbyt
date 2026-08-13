@@ -1,3 +1,4 @@
+import os
 import requests
 from datetime import datetime
 from zoneinfo import ZoneInfo
@@ -7,6 +8,36 @@ URL = (
     "teams/gb/schedule?season=2026&seasontype=1"
 )
 
+def get_odds(event_id):
+    url = "https://api.odds-api.io/v3/odds"
+
+    params = {
+        "apiKey": os.environ["ODDS_API_KEY"],
+        "eventId": event_id,
+        "bookmakers": "DraftKings",
+    }
+
+    response = requests.get(url, params=params, timeout=10)
+    response.raise_for_status()
+
+    data = response.json()
+    draftkings = data.get("bookmakers", {}).get("DraftKings", [])
+
+    spread = None
+    total = None
+
+    for market in draftkings:
+        if market["name"] == "Spread" and market["odds"]:
+            spread = market["odds"][0]["hdp"]
+            spread = f"-{spread}"
+
+        elif market["name"] == "Totals" and market["odds"]:
+            total = market["odds"][0]["hdp"]
+
+    return {
+        "spread": spread,
+        "total": total,
+    }
 
 def get_next_game():
     response = requests.get(URL, timeout=10)
@@ -45,10 +76,22 @@ def get_next_game():
             "home_away": packers["homeAway"],
             "date": game_time.strftime("%a, %b %-d"),
             "time": game_time.strftime("%-I:%M %p"),
+            "status": competition["status"]["type"]["state"],
+            "period": competition["status"]["period"],
+            "clock": competition["status"]["displayClock"],
+            "packers_score": next(
+                team.get("score")
+                for team in competition["competitors"]
+                if team["team"]["abbreviation"] == "GB"
+            ),
+            "opponent_score": next(
+                team.get("score")
+                for team in competition["competitors"]
+                if team["team"]["abbreviation"] != "GB"
+            ),
         }
 
     return None
-
 
 if __name__ == "__main__":
     game = get_next_game()
@@ -59,5 +102,9 @@ if __name__ == "__main__":
         print("Next Packers game:")
         print(f'GB {location} {game["opponent"]}')
         print(f'{game["date"]} at {game["time"]}')
+        print(f'Status: {game["status"]}')
+        print(f'Score: GB {game["packers_score"]} - {game["opponent"]} {game["opponent_score"]}')
+        print(f'Period: {game["period"]}')
+        print(f'Clock: {game["clock"]}')
     else:
         print("No upcoming Packers games.")
