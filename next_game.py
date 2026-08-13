@@ -41,7 +41,7 @@ def find_odds_event(opponent_name):
     return None
 
 
-def get_odds(event_id):
+def get_odds(event_id, packers_home):
     url = f"{ODDS_API_URL}/odds"
 
     params = {
@@ -61,8 +61,8 @@ def get_odds(event_id):
 
     for market in draftkings:
         if market["name"] == "Spread" and market["odds"]:
-            spread = market["odds"][0]["hdp"]
-            spread = f"-{spread}"
+            hdp = market["odds"][0]["hdp"]
+            spread = hdp if packers_home else -hdp
 
         elif market["name"] == "Totals" and market["odds"]:
             total = market["odds"][0]["hdp"]
@@ -73,7 +73,7 @@ def get_odds(event_id):
     }
 
 
-def get_cached_odds(opponent_name):
+def get_cached_odds(opponent_name, packers_home):
     try:
         with open(ODDS_CACHE_FILE) as file:
             cache = json.load(file)
@@ -92,7 +92,10 @@ def get_cached_odds(opponent_name):
     if not odds_event:
         return None
 
-    odds = get_odds(odds_event["id"])
+    odds = get_odds(
+        odds_event["id"],
+        packers_home,
+    )
 
     with open(ODDS_CACHE_FILE, "w") as file:
         json.dump(
@@ -137,8 +140,11 @@ def get_next_game():
             if team["team"]["abbreviation"] != "GB"
         )
 
+        packers_home = packers["homeAway"] == "home"
+
         odds_data = get_cached_odds(
-            opponent["team"]["displayName"]
+            opponent["team"]["displayName"],
+            packers_home,
         )
 
         game_time = datetime.fromisoformat(
