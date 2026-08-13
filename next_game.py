@@ -4,7 +4,7 @@ from zoneinfo import ZoneInfo
 
 URL = (
     "https://site.api.espn.com/apis/site/v2/sports/football/nfl/"
-    "teams/gb/schedule?season=2026&seasontype=2"
+    "teams/gb/schedule?season=2026&seasontype=1"
 )
 
 
