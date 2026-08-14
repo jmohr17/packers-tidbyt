@@ -1,104 +1,61 @@
 load("http.star", "http")
 load("render.star", "render")
 
-URL = "https://site.api.espn.com/apis/site/v2/sports/football/nfl/teams/gb/schedule?season=2026&seasontype=2"
+
+URL = "https://site.api.espn.com/apis/site/v2/sports/football/nfl/teams/gb/schedule?season=2026&seasontype=1"
 
 
 def get_next_game():
-    response = http.get(URL, ttl_seconds=900)
+    response = http.get(
+        URL,
+        ttl_seconds=900,
+    )
 
     if response.status_code != 200:
         fail("ESPN request failed")
 
     data = response.json()
 
+    upcoming_game = None
+    recent_completed_game = None
+
+    preseason_number = 0
+
     for event in data["events"]:
         competition = event["competitions"][0]
         status = competition.get("status", {}).get("type", {})
 
+        # Every event returned by this URL is a preseason game.
+        preseason_number = preseason_number + 1
+        event["preseason_number"] = preseason_number
+
         if status.get("completed", False):
-            continue
+            recent_completed_game = event
+        elif upcoming_game == None:
+            upcoming_game = event
 
-        competitors = competition["competitors"]
+    if recent_completed_game != None:
+        return recent_completed_game
 
-        packers = None
-        opponent = None
-
-        for team in competitors:
-            if team["team"]["abbreviation"] == "GB":
-                packers = team
-            else:
-                opponent = team
-
-        return {
-            "opponent": opponent["team"]["abbreviation"],
-            "home_away": packers["homeAway"],
-            "date": event["date"],
-            "week": event["week"]["text"],
-        }
-
-    return None
+    return upcoming_game
 
 
-def format_game_date(date_string):
-    year = int(date_string[0:4])
-    month = int(date_string[5:7])
-    day = int(date_string[8:10])
+def get_score(team):
+    score = team.get("score")
 
-    hour = int(date_string[11:13])
-    minute = int(date_string[14:16])
+    if score == None:
+        return None
 
-    # ESPN supplies UTC.
-    # August is daylight time in Central Time, so subtract 5 hours.
-    hour = hour - 5
+    if score.get("displayValue") != None:
+        return score["displayValue"]
 
-    if hour < 0:
-        hour = hour + 24
-        day = day - 1
-
-    months = [
-        "",
-        "JAN",
-        "FEB",
-        "MAR",
-        "APR",
-        "MAY",
-        "JUN",
-        "JUL",
-        "AUG",
-        "SEP",
-        "OCT",
-        "NOV",
-        "DEC",
-    ]
-
-    if hour == 0:
-        display_hour = 12
-    elif hour > 12:
-        display_hour = hour - 12
-    else:
-        display_hour = hour
-
-    if hour >= 12:
-        am_pm = "PM"
-    else:
-        am_pm = "AM"
-
-    date = months[month] + " " + str(day)
-    if minute < 10:
-        minute_text = "0" + str(minute)
-    else:
-     minute_text = str(minute)
-
-    time = str(display_hour) + ":" + minute_text + " " + am_pm
-
-    return date, time
+    return str(score)
 
 
 def main():
-    game = get_next_game()
+    event = get_next_game()
 
-    if game == None:
+    if event == None:
         return render.Root(
             child=render.Text(
                 "NO GAME",
@@ -106,29 +63,79 @@ def main():
             ),
         )
 
-    location = "vs" if game["home_away"] == "home" else "@"
+    competition = event["competitions"][0]
+    status = competition.get("status", {}).get("type", {})
 
-    date, game_time = format_game_date(game["date"])
+    competitors = competition["competitors"]
+
+    packers = None
+    opponent = None
+
+    for team in competitors:
+        if team["team"]["abbreviation"] == "GB":
+            packers = team
+        else:
+            opponent = team
+
+    location = "vs"
+
+    if packers["homeAway"] != "home":
+        location = "@"
+
+    packers_score = get_score(packers)
+    opponent_score = get_score(opponent)
+
+    children = [
+        render.Text(
+            "     PRE WK "
+            + str(event["preseason_number"]),
+            color="FFFFFF",
+        ),
+        render.Text(
+            "     GB "
+            + location
+            + " "
+            + opponent["team"]["abbreviation"],
+            color="FFB612",
+        ),
+    ]
+
+    if (
+        packers_score != None
+        and opponent_score != None
+    ):
+        result = "W"
+
+        if int(packers_score) < int(opponent_score):
+            result = "L"
+        elif int(packers_score) == int(opponent_score):
+            result = "T"
+
+        children.append(
+            render.Text("      "+
+                packers_score
+                + "     "
+                + opponent_score,
+                color="FFFFFF",
+            ),
+        )
+
+    if status.get("completed", False):
+        children.append(
+            render.Text(
+                "     FINAL"
+                + " ("
+                + result
+                + ")",
+                color="FFFFFF",
+            ),
+        )
 
     return render.Root(
-     child=render.Column(
-        children=[
-            render.Text(
-                "PACKERS",
-                color="FFB612",
-            ),
-            render.Text(
-                location + " " + game["opponent"],
-                color="FFFFFF",
-            ),
-            render.Text(
-                game["week"],
-                color="FFFFFF",
-            ),
-            render.Text(
-                date + "  " + game_time,
-                color="FFFFFF",
-            ),
-        ],
-    ),
-)
+        child=render.Column(
+            children=children,
+        ),
+    )
+
+
+main()
