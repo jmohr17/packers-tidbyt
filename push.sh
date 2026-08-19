@@ -1,6 +1,6 @@
 #!/bin/bash
 
-DEVICE_ID="forthrightly-blossoming-profound-basilisk-e6f"
+DEVICE_ID="faithlessly-ultimate-tuneful-bedbug-682"
 
 APPS=(
     "next_game"
